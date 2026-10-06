@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="ca" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pràctica de la Taula Periòdica - 3r i 4t ESO</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            metall: '#d97706',      // Ambre/Taronja metall
+            semimetall: '#059669',  // Verd esmeralda
+            nometall: '#0284c7',    // Blau cel
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #0f172a;
+      color: #f8fafc;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* Animació de sacsejada per error */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+    .animate-shake {
+      animation: shake 0.4s ease-in-out;
+    }
+
+    /* Pulse verd per encert */
+    @keyframes pop-success {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
+    .animate-pop {
+      animation: pop-success 0.35s ease-out;
+    }
+
+    /* Reixeta adaptable per a la taula periòdica */
+    .ptable-grid {
+      display: grid;
+      grid-template-columns: 32px repeat(17, minmax(44px, 1fr));
+      gap: 4px;
+    }
+
+    @media (max-width: 1024px) {
+      .ptable-grid {
+        grid-template-columns: 28px repeat(17, minmax(38px, 1fr));
+        gap: 3px;
+      }
+    }
+
+    /* Estils de les caselles */
+    .cell-target {
+      transition: all 0.2s ease;
+    }
+    .cell-target.hovered {
+      border-color: #38bdf8 !important;
+      background-color: rgba(56, 189, 248, 0.2) !important;
+      transform: scale(1.05);
+      z-index: 10;
+    }
+    .cell-target.selected-destination {
+      border-color: #f59e0b !important;
+      background-color: rgba(245, 158, 11, 0.25) !important;
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.5);
+    }
+
+    /* Scrollbar personalitzat */
+    ::-webkit-scrollbar {
+      height: 8px;
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #1e293b;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-3 md:p-6 font-sans antialiased text-slate-100">
+
+  <header class="max-w-7xl mx-auto w-full mb-4">
+    <div class="flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-800/80 backdrop-blur border border-slate-700/60 p-4 rounded-2xl shadow-xl">
+      <div>
+        <h1 class="text-xl md:text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-teal-300 to-amber-300">
+          Ubicació d'Elements - Taula Periòdica
+        </h1>
+        <p class="text-xs md:text-sm text-slate-400 mt-1">
+          Arrossega la targeta o fes-hi clic per seleccionar-la i posteriorment clica sobre la seva casella.
+        </p>
+      </div>
+
+      <!-- Marcadors i Progrés -->
+      <div class="flex items-center gap-3 md:gap-6 text-center">
+        <div class="bg-slate-900/80 px-3 py-2 rounded-xl border border-slate-700/50 min-w-[70px]">
+          <span class="block text-xs uppercase text-slate-400 font-semibold">Restants</span>
+          <span id="stat-remaining" class="text-lg md:text-xl font-bold text-sky-400">0</span>
+        </div>
+        <div class="bg-slate-900/80 px-3 py-2 rounded-xl border border-slate-700/50 min-w-[70px]">
+          <span class="block text-xs uppercase text-slate-400 font-semibold">Encerts</span>
+          <span id="stat-hits" class="text-lg md:text-xl font-bold text-emerald-400">0</span>
+        </div>
+        <div class="bg-slate-900/80 px-3 py-2 rounded-xl border border-slate-700/50 min-w-[70px]">
+          <span class="block text-xs uppercase text-slate-400 font-semibold">Errors</span>
+          <span id="stat-errors" class="text-lg md:text-xl font-bold text-rose-400">0</span>
+        </div>
+        <button id="btn-restart" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-xl text-xs font-semibold transition border border-slate-600 flex items-center gap-1.5 active:scale-95">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          Reiniciar
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto w-full flex-1 flex flex-col items-center justify-center gap-4">
+    
+    <!-- Àrea de Targeta d'Element Actiu -->
+    <div class="w-full bg-slate-800/90 border border-slate-700 p-4 rounded-2xl shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+      
+      <div class="flex items-center gap-4 w-full sm:w-auto">
+        <!-- Targeta de l'Element a ubicació -->
+        <div id="element-card" 
+             draggable="true" 
+             class="relative cursor-grab active:cursor-grabbing w-20 h-24 md:w-24 md:h-28 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 border-2 border-sky-300 shadow-lg shadow-sky-500/20 flex flex-col items-center justify-center transition-all hover:scale-105 active:scale-95">
+          <span id="card-symbol" class="text-2xl md:text-3xl font-extrabold text-white tracking-wide">--</span>
+          <span id="card-name" class="text-[10px] md:text-xs font-medium text-sky-100 mt-1 px-1 text-center truncate max-w-full"> Carregant... </span>
+          <span class="absolute top-1 right-1 text-[9px] font-mono text-sky-200 opacity-80">?</span>
+        </div>
+
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-lg md:text-xl font-bold text-slate-100">Element Actual</h2>
+            <span id="mobile-tap-hint" class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full hidden sm:inline-block">
+              Arrossega o Clica per seleccionar
+            </span>
+          </div>
+          <p id="instruction-text" class="text-xs md:text-sm text-slate-400 mt-1">
+            Troba la casella correcta d'aquest element a la taula periòdica.
+          </p>
+        </div>
+      </div>
+
+      <!-- Llegenda -->
+      <div class="flex items-center gap-3 text-xs bg-slate-900/60 p-2.5 rounded-xl border border-slate-700/60 w-full sm:w-auto justify-center">
+        <span class="text-slate-400 font-medium">Llegenda:</span>
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-3 rounded bg-amber-500/80 border border-amber-400 inline-block"></span>
+          <span class="text-slate-300">Metall</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-3 rounded bg-emerald-500/80 border border-emerald-400 inline-block"></span>
+          <span class="text-slate-300">Semimetall</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-3 rounded bg-sky-500/80 border border-sky-400 inline-block"></span>
+          <span class="text-slate-300">No metall</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Taula Periòdica Grid -->
+    <div class="w-full overflow-x-auto bg-slate-900/90 border border-slate-800 p-3 md:p-5 rounded-2xl shadow-2xl">
+      <div id="ptable-container" class="ptable-grid min-w-[820px]">
+        <!-- Generat dinàmicament mitjançant JavaScript -->
+      </div>
+    </div>
+  </main>
+
+  <div id="modal-result" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity duration-300">
+    <div class="bg-slate-800 border border-slate-700 w-full max-w-md rounded-3xl p-6 md:p-8 text-center shadow-2xl transform scale-90 transition-transform duration-300" id="modal-content">
+      <div class="w-20 h-20 bg-gradient-to-tr from-amber-400 to-yellow-200 text-slate-950 rounded-full flex items-center justify-center text-4xl mx-auto shadow-lg shadow-amber-500/20 mb-4" id="modal-icon">
+        🏆
+      </div>
+      
+      <h3 class="text-2xl font-extrabold text-slate-100">Activitat Finalitzada!</h3>
+      <p class="text-slate-400 text-sm mt-1">Has col·locat tots els elements de la taula.</p>
+
+      <!-- Nota Final -->
+      <div class="my-6 bg-slate-900/90 border border-slate-700/80 p-5 rounded-2xl">
+        <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold block mb-1">Qualificació Final</span>
+        <div class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-amber-300 to-emerald-400" id="final-grade">
+          10.0
+        </div>
+        <span id="final-feedback" class="inline-block mt-2 text-xs font-semibold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+          Excel·lent feina!
+        </span>
+      </div>
+
+      <!-- Desglossament de dades -->
+      <div class="grid grid-cols-3 gap-2 text-center text-xs mb-6">
+        <div class="bg-slate-900/50 p-2.5 rounded-xl border border-slate-700/50">
+          <span class="text-slate-400 block">Elements</span>
+          <span class="font-bold text-slate-200 text-sm" id="res-total">47</span>
+        </div>
+        <div class="bg-slate-900/50 p-2.5 rounded-xl border border-slate-700/50">
+          <span class="text-slate-400 block">Errors Totals</span>
+          <span class="font-bold text-rose-400 text-sm" id="res-errors">0</span>
+        </div>
+        <div class="bg-slate-900/50 p-2.5 rounded-xl border border-slate-700/50">
+          <span class="text-slate-400 block">Precisió</span>
+          <span class="font-bold text-sky-400 text-sm" id="res-accuracy">100%</span>
+        </div>
+      </div>
+
+      <button id="btn-modal-restart" class="w-full py-3 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold rounded-xl shadow-lg shadow-sky-500/25 transition active:scale-95">
+        Tornar a Practicar
+      </button>
+    </div>
+  </div>
+
+  <script>
+    /* 
+     * Dades dels 47 elements presentats exactament a la imatge de referència
+     * (Cobreix els grups 1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17)
+     */
+    const ELEMENTS = [
+      // Període 1
+      { symbol: 'H', name: 'Hidrogen', period: 1, group: 1, type: 'nometall' },
+      
+      // Període 2
+      { symbol: 'Li', name: 'Liti', period: 2, group: 1, type: 'metall' },
+      { symbol: 'Be', name: 'Beril·li', period: 2, group: 2, type: 'metall' },
+      { symbol: 'B', name: 'Bor', period: 2, group: 13, type: 'semimetall' },
+      { symbol: 'C', name: 'Carboni', period: 2, group: 14, type: 'nometall' },
+      { symbol: 'N', name: 'Nitrogen', period: 2, group: 15, type: 'nometall' },
+      { symbol: 'O', name: 'Oxigen', period: 2, group: 16, type: 'nometall' },
+      { symbol: 'F', name: 'Fluor', period: 2, group: 17, type: 'nometall' },
+      
+      // Període 3
+      { symbol: 'Na', name: 'Sodi', period: 3, group: 1, type: 'metall' },
+      { symbol: 'Mg', name: 'Magnesi', period: 3, group: 2, type: 'metall' },
+      { symbol: 'Al', name: 'Alumini', period: 3, group: 13, type: 'metall' },
+      { symbol: 'Si', name: 'Silici', period: 3, group: 14, type: 'semimetall' },
+      { symbol: 'P', name: 'Fòsfor', period: 3, group: 15, type: 'nometall' },
+      { symbol: 'S', name: 'Sofre', period: 3, group: 16, type: 'nometall' },
+      { symbol: 'Cl', name: 'Clor', period: 3, group: 17, type: 'nometall' },
+      
+      // Període 4
+      { symbol: 'K', name: 'Potassi', period: 4, group: 1, type: 'metall' },
+      { symbol: 'Ca', name: 'Calci', period: 4, group: 2, type: 'metall' },
+      { symbol: 'Cr', name: 'Crom', period: 4, group: 6, type: 'metall' },
+      { symbol: 'Mn', name: 'Manganès', period: 4, group: 7, type: 'metall' },
+      { symbol: 'Fe', name: 'Ferro', period: 4, group: 8, type: 'metall' },
+      { symbol: 'Co', name: 'Cobalt', period: 4, group: 9, type: 'metall' },
+      { symbol: 'Ni', name: 'Níquel', period: 4, group: 10, type: 'metall' },
+      { symbol: 'Cu', name: 'Coure', period: 4, group: 11, type: 'metall' },
+      { symbol: 'Zn', name: 'Zinc', period: 4, group: 12, type: 'metall' },
+      { symbol: 'Ge', name: 'Germani', period: 4, group: 14, type: 'semimetall' },
+      { symbol: 'As', name: 'Arsènic', period: 4, group: 15, type: 'semimetall' },
+      { symbol: 'Se', name: 'Seleni', period: 4, group: 16, type: 'nometall' },
+      { symbol: 'Br', name: 'Brom', period: 4, group: 17, type: 'nometall' },
+      
+      // Període 5
+      { symbol: 'Rb', name: 'Rubidi', period: 5, group: 1, type: 'metall' },
+      { symbol: 'Sr', name: 'Estronci', period: 5, group: 2, type: 'metall' },
+      { symbol: 'Pd', name: 'Pal·ladi', period: 5, group: 10, type: 'metall' },
+      { symbol: 'Ag', name: 'Plata', period: 5, group: 11, type: 'metall' },
+      { symbol: 'Cd', name: 'Cadmi', period: 5, group: 12, type: 'metall' },
+      { symbol: 'Sn', name: 'Estany', period: 5, group: 14, type: 'metall' },
+      { symbol: 'Sb', name: 'Antimoni', period: 5, group: 15, type: 'semimetall' },
+      { symbol: 'Te', name: 'Tel·luri', period: 5, group: 16, type: 'semimetall' },
+      { symbol: 'I', name: 'Iode', period: 5, group: 17, type: 'nometall' },
+      
+      // Període 6
+      { symbol: 'Cs', name: 'Cesi', period: 6, group: 1, type: 'metall' },
+      { symbol: 'Ba', name: 'Bari', period: 6, group: 2, type: 'metall' },
+      { symbol: 'Pt', name: 'Platí', period: 6, group: 10, type: 'metall' },
+      { symbol: 'Au', name: 'Or', period: 6, group: 11, type: 'metall' },
+      { symbol: 'Hg', name: 'Mercuri', period: 6, group: 12, type: 'metall' },
+      { symbol: 'Pb', name: 'Plom', period: 6, group: 14, type: 'metall' },
+      { symbol: 'Bi', name: 'Bismut', period: 6, group: 15, type: 'metall' },
+      { symbol: 'At', name: 'Astat', period: 6, group: 17, type: 'nometall' },
+      
+      // Període 7
+      { symbol: 'Fr', name: 'Franci', period: 7, group: 1, type: 'metall' },
+      { symbol: 'Ra', name: 'Radi', period: 7, group: 2, type: 'metall' }
+    ];
+
+    // Mapeig de columnes de la taula (Grups 1 a 17)
+    // Nota: El grup 18 no apareix a la imatge proporcionada.
+    const DISPLAY_GROUPS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
+
+    // Variable d'estat del joc
+    let queue = [];
+    let currentElement = null;
+    let hitsCount = 0;
+    let errorsCount = 0;
+    let totalAttempts = 0;
+    let isSelectedByClick = false;
+    let audioCtx = null;
+
+    function playSound(type) {
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        const now = audioCtx.currentTime;
+
+        if (type === 'success') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523.25, now); // C5
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.15); // A5
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+          osc.start(now);
+          osc.stop(now + 0.25);
+        } else if (type === 'error') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(180, now);
+          osc.frequency.setValueAtTime(110, now + 0.1);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+          osc.start(now);
+          osc.stop(now + 0.3);
+        } else if (type === 'win') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(440, now);
+          osc.frequency.setValueAtTime(554.37, now + 0.1);
+          osc.frequency.setValueAtTime(659.25, now + 0.2);
+          osc.frequency.setValueAtTime(880, now + 0.3);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+          osc.start(now);
+          osc.stop(now + 0.6);
+        }
+      } catch (e) {
+        // En cas de restriccions d'àudio
+      }
+    }
+
+    function createBoard() {
+      const container = document.getElementById('ptable-container');
+      container.innerHTML = '';
+
+      // Crear mapa de posicions vàlides
+      const validMap = new Map();
+      ELEMENTS.forEach(el => {
+        validMap.set(`${el.period}-${el.group}`, el);
+      });
+
+      // 1. Fila de Capçalera (Grups)
+      // Primera cel·la buida per a la columna de Períodes
+      const emptyHeader = document.createElement('div');
+      emptyHeader.className = 'text-[10px] text-slate-500 font-bold flex items-center justify-center';
+      emptyHeader.textContent = 'P\\G';
+      container.appendChild(emptyHeader);
+
+      DISPLAY_GROUPS.forEach(g => {
+        const gCell = document.createElement('div');
+        gCell.className = 'text-[11px] font-bold text-slate-400 text-center py-1 bg-slate-800/40 rounded';
+        gCell.textContent = g;
+        container.appendChild(gCell);
+      });
+
+      // 2. Files dels Períodes (1 a 7)
+      for (let p = 1; p <= 7; p++) {
+        // Etiqueta del Període
+        const pLabel = document.createElement('div');
+        pLabel.className = 'text-xs font-bold text-slate-400 flex items-center justify-center bg-slate-800/40 rounded';
+        pLabel.textContent = p;
+        container.appendChild(pLabel);
+
+        // Columnes dels Grups
+        DISPLAY_GROUPS.forEach(g => {
+          const key = `${p}-${g}`;
+          const isTarget = validMap.has(key);
+          const cell = document.createElement('div');
+          cell.dataset.period = p;
+          cell.dataset.group = g;
+
+          if (isTarget) {
+            cell.className = 'cell-target h-12 md:h-14 border border-slate-700/80 bg-slate-800/50 rounded-lg flex flex-col items-center justify-center cursor-pointer relative overflow-hidden transition-all';
+            
+            // Esdeveniments Drag & Drop
+            cell.addEventListener('dragover', handleDragOver);
+            cell.addEventListener('dragleave', handleDragLeave);
+            cell.addEventListener('drop', handleDrop);
+            
+            // Esdeveniment de Clic (Tàctil / Selecció)
+            cell.addEventListener('click', () => handleCellClick(cell));
+
+          } else {
+            // Casella buida / No activa en aquesta versió de la taula
+            cell.className = 'h-12 md:h-14 border border-slate-800/30 bg-slate-950/30 rounded-lg opacity-25 pointer-events-none';
+          }
+
+          container.appendChild(cell);
+        });
+      }
+    }
+
+    function initGame() {
+      hitsCount = 0;
+      errorsCount = 0;
+      totalAttempts = 0;
+      isSelectedByClick = false;
+
+      document.getElementById('stat-hits').textContent = '0';
+      document.getElementById('stat-errors').textContent = '0';
+
+      // Reordenar elements de forma aleatòria (Algorisme Fisher-Yates)
+      queue = [...ELEMENTS];
+      for (let i = queue.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [queue[i], queue[j]] = [queue[j], queue[i]];
+      }
+
+      createBoard();
+      nextTurn();
+      hideModal();
+    }
+
+    function nextTurn() {
+      deselectCard();
+      document.getElementById('stat-remaining').textContent = queue.length;
+
+      if (queue.length === 0) {
+        currentElement = null;
+        showFinalGrade();
+        return;
+      }
+
+      currentElement = queue.pop();
+
+      // Actualitzar targeta visible
+      const cardSymbol = document.getElementById('card-symbol');
+      const cardName = document.getElementById('card-name');
+      const card = document.getElementById('element-card');
+
+      cardSymbol.textContent = currentElement.symbol;
+      cardName.textContent = currentElement.name;
+      card.className = "relative cursor-grab active:cursor-grabbing w-20 h-24 md:w-24 md:h-28 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 border-2 border-sky-300 shadow-lg shadow-sky-500/20 flex flex-col items-center justify-center transition-all hover:scale-105 active:scale-95";
+    }
+
+    function selectCard() {
+      isSelectedByClick = true;
+      const card = document.getElementById('element-card');
+      card.classList.add('ring-4', 'ring-amber-400', 'scale-105', 'shadow-amber-500/50');
+      document.getElementById('instruction-text').textContent = "Ara fes clic sobre la casella buida on creus que va " + currentElement.symbol + ".";
+    }
+
+    function deselectCard() {
+      isSelectedByClick = false;
+      const card = document.getElementById('element-card');
+      card.classList.remove('ring-4', 'ring-amber-400', 'scale-105', 'shadow-amber-500/50');
+      document.getElementById('instruction-text').textContent = "Arrossega o selecciona l'element per situar-lo a la taula.";
+    }
+
+    // Toggle selecció per clic en la targeta
+    document.getElementById('element-card').addEventListener('click', (e) => {
+      if (!currentElement) return;
+      if (isSelectedByClick) {
+        deselectCard();
+      } else {
+        selectCard();
+      }
+    });
+
+    // Drag start
+    document.getElementById('element-card').addEventListener('dragstart', (e) => {
+      if (!currentElement) return;
+      e.dataTransfer.setData('text/plain', currentElement.symbol);
+      selectCard();
+    });
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      const cell = e.currentTarget;
+      if (!cell.classList.contains('placed')) {
+        cell.classList.add('hovered');
+      }
+    }
+
+    function handleDragLeave(e) {
+      e.currentTarget.classList.remove('hovered');
+    }
+
+    function handleDrop(e) {
+      e.preventDefault();
+      const cell = e.currentTarget;
+      cell.classList.remove('hovered');
+      processAttempt(cell);
+    }
+
+    function handleCellClick(cell) {
+      if (!currentElement || cell.classList.contains('placed')) return;
+      processAttempt(cell);
+    }
+
+    function processAttempt(cell) {
+      if (!currentElement || cell.classList.contains('placed')) return;
+
+      const p = parseInt(cell.dataset.period);
+      const g = parseInt(cell.dataset.group);
+      totalAttempts++;
+
+      if (p === currentElement.period && g === currentElement.group) {
+        // ENCERT
+        playSound('success');
+        hitsCount++;
+        document.getElementById('stat-hits').textContent = hitsCount;
+
+        // Marcar la casella com col·locada
+        cell.classList.add('placed', 'animate-pop');
+        cell.classList.remove('bg-slate-800/50');
+
+        // Coloració segons el tipus d'element (Metall, Semimetall, No metall)
+        if (currentElement.type === 'metall') {
+          cell.classList.add('bg-amber-600/80', 'border-amber-400', 'text-amber-100');
+        } else if (currentElement.type === 'semimetall') {
+          cell.classList.add('bg-emerald-600/80', 'border-emerald-400', 'text-emerald-100');
+        } else {
+          cell.classList.add('bg-sky-600/80', 'border-sky-400', 'text-sky-100');
+        }
+
+        // Contingut visible de la casella
+        cell.innerHTML = `
+          <span class="text-sm md:text-base font-extrabold leading-none">${currentElement.symbol}</span>
+          <span class="text-[8px] md:text-[9px] font-medium opacity-90 truncate max-w-full px-0.5 mt-0.5">${currentElement.name}</span>
+        `;
+
+        // Passar al següent element
+        nextTurn();
+
+      } else {
+        // ERROR
+        playSound('error');
+        errorsCount++;
+        document.getElementById('stat-errors').textContent = errorsCount;
+
+        // Animació visual d'error
+        cell.classList.add('animate-shake', 'border-rose-500', 'bg-rose-950/60');
+        setTimeout(() => {
+          cell.classList.remove('animate-shake', 'border-rose-500', 'bg-rose-950/60');
+        }, 400);
+
+        // Desmuntar selecció si n'hi havia
+        deselectCard();
+      }
+    }
+
+    function showFinalGrade() {
+      playSound('win');
+
+      // Càlcul de la nota: 
+      // Si no hi ha hagut errors, és un 10.
+      // Cada error resta una penalització proporcional respecte el total d'elements.
+      const totalElements = ELEMENTS.length; // 47
+      
+      // Fórmula de qualificació sobre 10:
+      // Nota = (Encerts / TotalIntents) * 10 o amb penalització directa per error
+      let grade = 10 - (errorsCount * 0.25);
+      if (grade < 0) grade = 0;
+      grade = Math.round(grade * 10) / 10; // Arrodonir a 1 decimal
+
+      const accuracy = totalAttempts > 0 
+        ? Math.round((hitsCount / totalAttempts) * 100) 
+        : 100;
+
+      document.getElementById('final-grade').textContent = grade.toFixed(1) + " / 10";
+      document.getElementById('res-total').textContent = totalElements;
+      document.getElementById('res-errors').textContent = errorsCount;
+      document.getElementById('res-accuracy').textContent = accuracy + "%";
+
+      // Feedback pedagògic segons la nota
+      const feedbackEl = document.getElementById('final-feedback');
+      const iconEl = document.getElementById('modal-icon');
+
+      if (grade >= 9) {
+        feedbackEl.textContent = "¡Excel·lent domini de la taula periòdica!";
+        feedbackEl.className = "inline-block mt-2 text-xs font-semibold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+        iconEl.textContent = "🏆";
+      } else if (grade >= 7) {
+        feedbackEl.textContent = "Molt bona feina! Tens quasi tots els elements dominats.";
+        feedbackEl.className = "inline-block mt-2 text-xs font-semibold px-3 py-1 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30";
+        iconEl.textContent = "🌟";
+      } else if (grade >= 5) {
+        feedbackEl.textContent = "Aprovat. Pots millorar la posició dels metalls de transició.";
+        feedbackEl.className = "inline-block mt-2 text-xs font-semibold px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30";
+        iconEl.textContent = "👍";
+      } else {
+        feedbackEl.textContent = "Cal repassar la taula i tornar-ho a intentar.";
+        feedbackEl.className = "inline-block mt-2 text-xs font-semibold px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30";
+        iconEl.textContent = "📚";
+      }
+
+      // Mostrar modal
+      const modal = document.getElementById('modal-result');
+      const content = document.getElementById('modal-content');
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      content.classList.remove('scale-90');
+      content.classList.add('scale-100');
+    }
+
+    function hideModal() {
+      const modal = document.getElementById('modal-result');
+      const content = document.getElementById('modal-content');
+      modal.classList.add('opacity-0', 'pointer-events-none');
+      content.classList.remove('scale-100');
+      content.classList.add('scale-90');
+    }
+
+    // Botons de reinici
+    document.getElementById('btn-restart').addEventListener('click', initGame);
+    document.getElementById('btn-modal-restart').addEventListener('click', initGame);
+
+    // Inicialitzar la primera partida al carregar
+    window.addEventListener('DOMContentLoaded', initGame);
+  </script>
+</body>
+</html>
